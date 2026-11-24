@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">晴光碑谷</string>
+    <string name="title_activity_main">晴光碑谷</string>
+    <string name="package_name">com.sunlit.spire</string>
+    <string name="custom_url_scheme">com.sunlit.spire</string>
+</resources>

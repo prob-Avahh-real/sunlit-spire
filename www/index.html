@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no,viewport-fit=cover">
+<title>晴光碑谷 · Sunlit Spire</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --sky0:#8fd4ea;--sky1:#ffe9a8;--ink:#2a3a4a;--coral:#ff7a6e;--mint:#3ec9b0;
+  --butter:#ffd45c;--cream:#fff7ea;--glass:rgba(255,255,255,.55);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none;
+  font-family:"Sora","PingFang SC","Hiragino Sans GB",sans-serif;color:var(--ink);
+  background:linear-gradient(165deg,var(--sky0) 0%,#b8e4f2 42%,var(--sky1) 100%)}
+canvas{display:block;position:absolute;inset:0;width:100%;height:100%}
+#hud{position:absolute;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:flex-start;
+  padding:max(10px,env(safe-area-inset-top)) 14px 0;pointer-events:none;z-index:10}
+#hud .chip{background:var(--glass);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  border:1px solid rgba(255,255,255,.65);border-radius:16px;padding:8px 12px;box-shadow:0 8px 24px rgba(42,58,74,.08)}
+#hud .hl{font-size:10px;opacity:.55;letter-spacing:.04em}#hud .hv{font-size:18px;font-weight:800;line-height:1.15}
+#hint{position:absolute;bottom:max(18px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);
+  z-index:10;pointer-events:none;background:var(--glass);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  border:1px solid rgba(255,255,255,.7);border-radius:999px;padding:8px 16px;font-size:12px;font-weight:600;
+  color:var(--ink);opacity:0;transition:opacity .25s;white-space:nowrap;max-width:92vw;overflow:hidden;text-overflow:ellipsis}
+#hint.show{opacity:1}
+#start,#win{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  z-index:30;background:linear-gradient(165deg,rgba(143,212,234,.96),rgba(255,233,168,.96));text-align:center;padding:24px}
+#win{display:none}#win.show{display:flex}
+#start h1,#win h2{font-size:clamp(28px,8vw,48px);font-weight:800;letter-spacing:-.02em;
+  background:linear-gradient(120deg,var(--coral),#ff9a4a 45%,var(--mint));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:8px}
+#start .sub,#win .sub{font-size:13px;opacity:.65;margin-bottom:18px;max-width:280px;line-height:1.5}
+#levels{display:flex;flex-wrap:wrap;gap:8px;max-width:340px;justify-content:center;margin-bottom:16px}
+.lb{background:rgba(255,255,255,.7);border:1px solid rgba(255,255,255,.9);border-radius:14px;
+  padding:10px 14px;font-size:12px;font-weight:700;cursor:pointer;color:var(--ink);min-width:64px;
+  box-shadow:0 6px 16px rgba(42,58,74,.06);transition:transform .12s}
+.lb:active{transform:scale(.96)}.lb.done{background:linear-gradient(135deg,#ffe08a,#ffd45c)}
+.btn{background:linear-gradient(135deg,var(--coral),#ff9a4a);border:none;color:#fff;font-family:inherit;
+  font-size:16px;font-weight:700;padding:12px 34px;border-radius:999px;cursor:pointer;
+  box-shadow:0 10px 28px rgba(255,122,110,.35)}.btn:active{transform:scale(.96)}
+.btn.ghost{background:rgba(255,255,255,.75);color:var(--ink);box-shadow:none;margin-top:10px;font-size:13px;padding:10px 22px}
+#ring-status,#cane-status{position:fixed;right:.55rem;font-size:.62rem;padding:.18rem .45rem;border-radius:2rem;
+  z-index:50;display:none;background:rgba(255,255,255,.75);color:#6a7a8a;border:1px solid rgba(255,255,255,.9);font-weight:600}
+#ring-status{top:auto;bottom:max(52px,calc(env(safe-area-inset-bottom) + 44px))}
+#cane-status{top:auto;bottom:max(28px,calc(env(safe-area-inset-bottom) + 20px))}
+#ring-status.active,#cane-status.active{display:flex;align-items:center;gap:.25rem}
+#ring-status.active{color:#2a8fd4;border-color:#7ec8e3}
+#cane-status.active{color:#c05ad4;border-color:#e0a0f0}
+@media(max-width:280px),(max-height:300px){
+  #hud .hv{font-size:12px}#hud .hl{font-size:7px}#hud .chip{padding:4px 8px;border-radius:10px}
+  #start h1,#win h2{font-size:16px}#start .sub,#win .sub{font-size:9px;margin-bottom:10px}
+  .lb{font-size:8px;padding:5px 8px;min-width:40px;border-radius:8px}.btn{font-size:11px;padding:8px 16px}
+  #hint{font-size:9px;padding:5px 10px;bottom:8px}#levels{gap:4px}
+}
+@media(max-width:420px) and (max-height:340px),(max-width:340px) and (max-height:420px){
+  #hud .hv{font-size:13px}#start h1,#win h2{font-size:18px}.btn{font-size:12px;padding:8px 18px}
+  #hint{font-size:10px}
+}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hud">
+  <div class="chip"><div class="hl">关卡</div><div class="hv" id="lv-name">—</div></div>
+  <div class="chip" style="text-align:right"><div class="hl">步数</div><div class="hv" id="steps">0</div></div>
+</div>
+<div id="hint"></div>
+<div id="ring-status"></div>
+<div id="cane-status"></div>
+
+<div id="start">
+  <h1>晴光碑谷</h1>
+  <p class="sub">在阳光里旋转建筑，走出不可能的路。点地行走，拖旋钮转塔。</p>
+  <div id="levels"></div>
+  <button class="btn" id="btn-play">开始探索</button>
+</div>
+
+<div id="win">
+  <h2>抵达光门</h2>
+  <p class="sub" id="win-sub">阳光为你打开了通路。</p>
+  <button class="btn" id="btn-next">下一关</button>
+  <button class="btn ghost" id="btn-menu">返回选关</button>
+</div>
+
+<script>
+(() => {
+"use strict";
+
+const canvas = document.getElementById("c");
+const ctx = canvas.getContext("2d");
+const TW = 54, TH = 27, ZH = 18;
+let W = 0, H = 0, dpr = 1;
+let ox = 0, oy = 0, scale = 1;
+let state = "menu";
+let levelIdx = 0;
+let steps = 0;
+let anim = null;
+let particles = [];
+let clouds = [];
+let time = 0;
+let hintTimer = 0;
+let completed = JSON.parse(localStorage.getItem("sunlit-done") || "[]");
+
+const PAL = {
+  path:   ["#fff4e4", "#f0d9b8", "#e8c9a0"],
+  coral:  ["#ff9a8e", "#ff7a6e", "#e85a52"],
+  mint:   ["#6fe0cb", "#3ec9b0", "#2aa890"],
+  butter: ["#ffe28a", "#ffd45c", "#e8b83a"],
+  sky:    ["#b8e8f5", "#7ec8e3", "#5aa8c8"],
+  goal:   ["#fff6a8", "#ffd45c", "#f0b020"],
+  start:  ["#e8f8ff", "#b8e0f0", "#90c8e0"],
+};
+
+function resize() {
+  dpr = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth; H = window.innerHeight;
+  canvas.width = W * dpr; canvas.height = H * dpr;
+  canvas.style.width = W + "px"; canvas.style.height = H + "px";
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  fitCamera();
+}
+window.addEventListener("resize", resize);
+
+function iso(x, y, z = 0) {
+  return { x: (x - y) * TW * 0.5, y: (x + y) * TH * 0.5 - z * ZH };
+}
+
+function fitCamera() {
+  if (!tiles.length) return;
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (const t of tiles) {
+    const p = iso(t.x, t.y, t.z || 0);
+    minX = Math.min(minX, p.x - TW); maxX = Math.max(maxX, p.x + TW);
+    minY = Math.min(minY, p.y - ZH * 2); maxY = Math.max(maxY, p.y + TH * 2);
+  }
+  const bw = maxX - minX + 40, bh = maxY - minY + 80;
+  const watch = W <= 280 || H <= 300;
+  scale = Math.min((W * (watch ? 0.92 : 0.82)) / bw, (H * (watch ? 0.72 : 0.68)) / bh, watch ? 1.35 : 1.55);
+  ox = W / 2 - ((minX + maxX) / 2) * scale;
+  oy = H / 2 - ((minY + maxY) / 2) * scale + (watch ? 8 : 18);
+}
+
+function key(x, y, z) { return x + "," + y + "," + z; }
+
+// Geometry is stored in SOLVED pose (all rotators at angle 0).
+// `startAngle` scrambles the group on load.
+const LEVELS = [
+  {
+    name: "晨光第一步",
+    hint: "点亮的地砖可以走，走到金色光门",
+    tiles: [
+      {x:0,y:0,z:0,kind:"start"},
+      {x:1,y:0,z:0,kind:"path"},
+      {x:2,y:0,z:0,kind:"path"},
+      {x:2,y:1,z:0,kind:"path"},
+      {x:2,y:2,z:0,kind:"goal"},
+    ],
+    rotators: [],
+  },
+  {
+    name: "旋转廊桥",
+    hint: "拖动彩色旋钮，让廊桥对上",
+    tiles: [
+      {x:0,y:1,z:0,kind:"start"},
+      {x:1,y:1,z:0,kind:"path"},
+      {x:2,y:1,z:0,kind:"path",group:"bridge"},
+      {x:3,y:1,z:0,kind:"path",group:"bridge"},
+      {x:4,y:0,z:0,kind:"path"},
+      {x:4,y:1,z:0,kind:"path"},
+      {x:4,y:2,z:0,kind:"goal"},
+      {x:2,y:2,z:0,kind:"block",group:"bridge"},
+      {x:3,y:2,z:0,kind:"block",group:"bridge"},
+    ],
+    rotators: [{id:"r1",cx:2.5,cy:1.5,group:"bridge",startAngle:1,palette:"coral"}],
+  },
+  {
+    name: "双塔对齐",
+    hint: "两座小塔都要转到正确朝向",
+    tiles: [
+      {x:0,y:2,z:0,kind:"start"},
+      {x:1,y:2,z:0,kind:"path"},
+      {x:2,y:2,z:0,kind:"path",group:"a"},
+      {x:3,y:2,z:0,kind:"path",group:"a"},
+      {x:2,y:1,z:0,kind:"block",group:"a"},
+      {x:3,y:1,z:0,kind:"block",group:"a"},
+      {x:4,y:2,z:0,kind:"path"},
+      {x:5,y:2,z:0,kind:"path",group:"b"},
+      {x:6,y:2,z:0,kind:"path",group:"b"},
+      {x:5,y:1,z:0,kind:"block",group:"b"},
+      {x:6,y:1,z:0,kind:"block",group:"b"},
+      {x:7,y:2,z:0,kind:"goal"},
+    ],
+    rotators: [
+      {id:"ra",cx:2.5,cy:1.5,group:"a",startAngle:1,palette:"mint"},
+      {id:"rb",cx:5.5,cy:1.5,group:"b",startAngle:3,palette:"butter"},
+    ],
+  },
+  {
+    name: "折角回廊",
+    hint: "把 L 形回廊转到缺口上",
+    tiles: [
+      {x:0,y:2,z:0,kind:"start"},
+      {x:1,y:2,z:0,kind:"path"},
+      {x:2,y:2,z:0,kind:"path",group:"ell"},
+      {x:3,y:2,z:0,kind:"path",group:"ell"},
+      {x:3,y:1,z:0,kind:"path",group:"ell"},
+      {x:2,y:1,z:0,kind:"block",group:"ell"},
+      {x:2,y:0,z:0,kind:"block",group:"ell"},
+      {x:3,y:0,z:0,kind:"block",group:"ell"},
+      {x:3,y:3,z:0,kind:"path"},
+      {x:4,y:3,z:0,kind:"path"},
+      {x:5,y:3,z:0,kind:"goal"},
+    ],
+    rotators: [{id:"ell",cx:2.5,cy:1.5,group:"ell",startAngle:3,palette:"sky"}],
+  },
+  {
+    name: "日冕之环",
+    hint: "两座环塔都转到通路，走出完整圆环",
+    tiles: [
+      {x:1,y:3,z:0,kind:"start"},
+      {x:2,y:3,z:0,kind:"path"},
+      {x:3,y:3,z:0,kind:"path",group:"ring"},
+      {x:3,y:2,z:0,kind:"path",group:"ring"},
+      {x:3,y:1,z:0,kind:"path",group:"ring"},
+      {x:4,y:1,z:0,kind:"path"},
+      {x:5,y:1,z:0,kind:"path"},
+      {x:5,y:2,z:0,kind:"path",group:"wing"},
+      {x:5,y:3,z:0,kind:"path",group:"wing"},
+      {x:6,y:3,z:0,kind:"goal"},
+      {x:2,y:2,z:0,kind:"block",group:"ring"},
+      {x:2,y:1,z:0,kind:"block",group:"ring"},
+      {x:4,y:2,z:0,kind:"block",group:"wing"},
+      {x:6,y:2,z:0,kind:"block",group:"wing"},
+    ],
+    rotators: [
+      {id:"ring",cx:3,cy:2,group:"ring",startAngle:1,palette:"coral"},
+      {id:"wing",cx:5,cy:2,group:"wing",startAngle:2,palette:"mint"},
+    ],
+  },
+];
+
+let level = null;
+let tiles = [];
+let rotators = [];
+let player = {x:0,y:0,z:0,px:0,py:0,pz:0};
+let dragging = null;
+let hoverRot = null;
+
+function rotateTiles(group, cx, cy, quarterTurns) {
+  const steps = ((quarterTurns % 4) + 4) % 4;
+  if (!steps) return;
+  for (const t of tiles) {
+    if (t.group !== group) continue;
+    let dx = t.x - cx, dy = t.y - cy;
+    for (let i = 0; i < steps; i++) {
+      const nx = -dy, ny = dx; // 90° CW
+      dx = nx; dy = ny;
+    }
+    t.x = Math.round((cx + dx) * 1000) / 1000;
+    t.y = Math.round((cy + dy) * 1000) / 1000;
+    // snap near-integers
+    if (Math.abs(t.x - Math.round(t.x)) < 1e-6) t.x = Math.round(t.x);
+    if (Math.abs(t.y - Math.round(t.y)) < 1e-6) t.y = Math.round(t.y);
+  }
+}
+
+function loadLevel(i) {
+  levelIdx = i;
+  const src = LEVELS[i];
+  level = src;
+  tiles = src.tiles.map(t => ({...t}));
+  rotators = src.rotators.map(r => ({
+    ...r,
+    angle: 0,
+    visual: 0,
+  }));
+  // scramble from solved pose
+  for (const r of rotators) {
+    const a = r.startAngle || 0;
+    if (a) {
+      rotateTiles(r.group, r.cx, r.cy, a);
+      r.angle = a;
+      r.visual = a;
+    }
+  }
+  const start = tiles.find(t => t.kind === "start");
+  player = {x:start.x,y:start.y,z:start.z||0, px:start.x,py:start.y,pz:start.z||0};
+  steps = 0;
+  anim = null;
+  particles = [];
+  dragging = null;
+  document.getElementById("lv-name").textContent = src.name;
+  document.getElementById("steps").textContent = "0";
+  document.getElementById("win").classList.remove("show");
+  document.getElementById("start").style.display = "none";
+  state = "play";
+  fitCamera();
+  showHint(src.hint, 3200);
+}
+
+function showHint(text, ms = 2200) {
+  const el = document.getElementById("hint");
+  el.textContent = text;
+  el.classList.add("show");
+  clearTimeout(hintTimer);
+  hintTimer = setTimeout(() => el.classList.remove("show"), ms);
+}
+
+function tileMap() {
+  const m = new Map();
+  for (const t of tiles) m.set(key(t.x, t.y, t.z || 0), t);
+  return m;
+}
+
+function walkableAt(x, y, z) {
+  const t = tileMap().get(key(x, y, z));
+  if (!t || t.kind === "block") return null;
+  return t;
+}
+
+function neighbors(x, y, z) {
+  const out = [];
+  for (const [dx, dy] of [[1,0],[0,1],[-1,0],[0,-1]]) {
+    for (const dz of [0, 1, -1]) {
+      const t = walkableAt(x + dx, y + dy, z + dz);
+      if (t) out.push(t);
+    }
+  }
+  return out;
+}
+
+function findPath(sx, sy, sz, gx, gy, gz) {
+  const startK = key(sx, sy, sz);
+  const goalK = key(gx, gy, gz);
+  if (startK === goalK) return [{x:sx,y:sy,z:sz}];
+  const q = [{x:sx,y:sy,z:sz}];
+  const prev = new Map([[startK, null]]);
+  while (q.length) {
+    const cur = q.shift();
+    for (const n of neighbors(cur.x, cur.y, cur.z)) {
+      const nz = n.z || 0;
+      const nk = key(n.x, n.y, nz);
+      if (prev.has(nk)) continue;
+      prev.set(nk, cur);
+      if (nk === goalK) {
+        const path = [{x:n.x,y:n.y,z:nz}];
+        let p = cur;
+        while (p) {
+          path.push(p);
+          p = prev.get(key(p.x, p.y, p.z));
+        }
+        return path.reverse();
+      }
+      q.push({x:n.x,y:n.y,z:nz});
+    }
+  }
+  return null;
+}
+
+function tryWalkTo(tx, ty, tz) {
+  if (anim || state !== "play") return;
+  if (!walkableAt(tx, ty, tz)) return;
+  const path = findPath(player.x, player.y, player.z, tx, ty, tz);
+  if (!path || path.length < 2) {
+    showHint("还到不了那里，试试转转塔", 1600);
+    return;
+  }
+  anim = {path, i: 0, t: 0};
+}
+
+function finishLevel() {
+  state = "win";
+  if (!completed.includes(levelIdx)) {
+    completed.push(levelIdx);
+    localStorage.setItem("sunlit-done", JSON.stringify(completed));
+  }
+  document.getElementById("win-sub").textContent =
+    `「${level.name}」完成 · 走了 ${steps} 步`;
+  document.getElementById("win").classList.add("show");
+  spawnBurst(player.px, player.py, player.pz);
+}
+
+function spawnBurst(x, y, z) {
+  const p = iso(x, y, z);
+  for (let i = 0; i < 28; i++) {
+    particles.push({
+      x: p.x, y: p.y - 10,
+      vx: (Math.random() - 0.5) * 4,
+      vy: -Math.random() * 3 - 1,
+      life: 1,
+      c: ["#ff7a6e", "#ffd45c", "#3ec9b0", "#fff"][i % 4],
+    });
+  }
+}
+
+function rotateGroupSafe(rot, newAngle) {
+  if (anim) return;
+  const from = rot.angle;
+  const to = ((Math.round(newAngle) % 4) + 4) % 4;
+  if (from === to) { rot.visual = to; return; }
+
+  let rode = null;
+  for (const t of tiles) {
+    if (t.group === rot.group && t.x === player.x && t.y === player.y && (t.z || 0) === player.z) {
+      rode = t; break;
+    }
+  }
+  rotateTiles(rot.group, rot.cx, rot.cy, to - from);
+  rot.angle = to;
+  rot.visual = to;
+  if (rode) {
+    player.x = rode.x; player.y = rode.y; player.z = rode.z || 0;
+    player.px = player.x; player.py = player.y; player.pz = player.z;
+  } else if (!walkableAt(player.x, player.y, player.z)) {
+    const s = tiles.find(t => t.kind === "start");
+    if (s) {
+      player.x = s.x; player.y = s.y; player.z = s.z || 0;
+      player.px = player.x; player.py = player.y; player.pz = player.z;
+    }
+  }
+  fitCamera();
+}
+
+function pickTile(sx, sy) {
+  const candidates = [];
+  for (const t of tiles) {
+    if (t.kind === "block") continue;
+    const p = iso(t.x, t.y, t.z || 0);
+    const cx = ox + p.x * scale;
+    const cy = oy + p.y * scale;
+    const dx = sx - cx, dy = sy - cy;
+    const hw = TW * 0.5 * scale, hh = TH * 0.5 * scale;
+    if (Math.abs(dx) / hw + Math.abs(dy) / hh < 1.2) {
+      candidates.push({t, depth: t.x + t.y + (t.z || 0) * 2});
+    }
+  }
+  candidates.sort((a, b) => b.depth - a.depth);
+  return candidates[0]?.t || null;
+}
+
+function rotatorHandlePos(r) {
+  const p = iso(r.cx, r.cy, 0.8);
+  return {x: ox + p.x * scale, y: oy + (p.y - 28) * scale};
+}
+
+function pickRotator(sx, sy) {
+  let best = null, bestD = 32 * Math.max(scale, 0.85);
+  for (const r of rotators) {
+    const h = rotatorHandlePos(r);
+    const d = Math.hypot(sx - h.x, sy - h.y);
+    if (d < bestD) { bestD = d; best = r; }
+  }
+  return best;
+}
+
+function pointerAngle(r, sx, sy) {
+  const h = rotatorHandlePos(r);
+  return Math.atan2(sy - h.y, sx - h.x);
+}
+
+function onDown(sx, sy) {
+  if (state !== "play") return;
+  const r = pickRotator(sx, sy);
+  if (r) {
+    dragging = {rot: r, startAng: r.angle, pointer0: pointerAngle(r, sx, sy)};
+    return;
+  }
+  const t = pickTile(sx, sy);
+  if (t) tryWalkTo(t.x, t.y, t.z || 0);
+}
+
+function onMove(sx, sy) {
+  if (!dragging) { hoverRot = pickRotator(sx, sy); return; }
+  const r = dragging.rot;
+  const a = pointerAngle(r, sx, sy);
+  r.visual = dragging.startAng + (a - dragging.pointer0) / (Math.PI / 2);
+}
+
+function onUp() {
+  if (!dragging) return;
+  const r = dragging.rot;
+  rotateGroupSafe(r, Math.round(r.visual));
+  dragging = null;
+}
+
+canvas.addEventListener("pointerdown", e => {
+  canvas.setPointerCapture(e.pointerId);
+  onDown(e.clientX, e.clientY);
+});
+canvas.addEventListener("pointermove", e => onMove(e.clientX, e.clientY));
+canvas.addEventListener("pointerup", onUp);
+canvas.addEventListener("pointercancel", () => {
+  if (dragging) { dragging.rot.visual = dragging.rot.angle; dragging = null; }
+});
+
+function roundRectPath(x, y, w, h, r) {
+  const rr = Math.min(r, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + rr, y);
+  ctx.arcTo(x + w, y, x + w, y + h, rr);
+  ctx.arcTo(x + w, y + h, x, y + h, rr);
+  ctx.arcTo(x, y + h, x, y, rr);
+  ctx.arcTo(x, y, x + w, y, rr);
+  ctx.closePath();
+}
+
+function drawTile(t) {
+  const z = t.z || 0;
+  const p = iso(t.x, t.y, z);
+  const rot = rotators.find(r => r.group === t.group);
+  const pal = t.kind === "goal" ? PAL.goal
+    : t.kind === "start" ? PAL.start
+    : t.kind === "block" ? PAL.sky
+    : t.group ? (PAL[rot?.palette] || PAL.coral)
+    : PAL.path;
+  const top = pal[0], left = pal[1], right = pal[2];
+  ctx.save();
+  ctx.translate(p.x, p.y);
+
+  const h = ZH * (z > 0 ? 1.1 : 0.55) + 6;
+  ctx.beginPath();
+  ctx.moveTo(-TW/2, 0); ctx.lineTo(0, TH/2); ctx.lineTo(0, TH/2 + h); ctx.lineTo(-TW/2, h); ctx.closePath();
+  ctx.fillStyle = left; ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(TW/2, 0); ctx.lineTo(0, TH/2); ctx.lineTo(0, TH/2 + h); ctx.lineTo(TW/2, h); ctx.closePath();
+  ctx.fillStyle = right; ctx.fill();
+
+  ctx.beginPath();
+  ctx.moveTo(0, -TH/2); ctx.lineTo(TW/2, 0); ctx.lineTo(0, TH/2); ctx.lineTo(-TW/2, 0); ctx.closePath();
+  ctx.fillStyle = top;
+  ctx.fill();
+  ctx.strokeStyle = "rgba(42,58,74,.12)";
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  if (t.kind === "goal") {
+    const pulse = 0.5 + 0.5 * Math.sin(time * 0.006);
+    ctx.beginPath();
+    ctx.arc(0, -2, 7 + pulse * 2, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(255,212,92,${0.55 + pulse * 0.35})`;
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(0, -14); ctx.lineTo(5, -4); ctx.lineTo(-5, -4); ctx.closePath();
+    ctx.fillStyle = "#fff6c8";
+    ctx.fill();
+  }
+  if (t.kind === "start") {
+    ctx.beginPath();
+    ctx.arc(0, 0, 4, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(90,168,200,.45)";
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawPlayer() {
+  const p = iso(player.px, player.py, player.pz);
+  ctx.save();
+  ctx.translate(p.x, p.y - 8);
+  ctx.beginPath();
+  ctx.ellipse(0, 10, 10, 5, 0, 0, Math.PI * 2);
+  ctx.fillStyle = "rgba(42,58,74,.18)";
+  ctx.fill();
+  const bob = Math.sin(time * 0.008) * 1.2;
+  ctx.translate(0, bob);
+  ctx.fillStyle = "#fff";
+  roundRectPath(-7, -16, 14, 18, 6);
+  ctx.fill();
+  ctx.fillStyle = "#ff7a6e";
+  ctx.beginPath();
+  ctx.arc(0, -22, 7, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#fff";
+  ctx.beginPath();
+  ctx.arc(-2.5, -23, 1.4, 0, Math.PI * 2);
+  ctx.arc(2.5, -23, 1.4, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#ffd45c";
+  ctx.beginPath();
+  ctx.moveTo(-6, -10);
+  ctx.quadraticCurveTo(-14, -2 + Math.sin(time * 0.01) * 2, -5, 4);
+  ctx.lineTo(0, -6);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawRotator(r) {
+  const h = rotatorHandlePos(r);
+  const pal = PAL[r.palette] || PAL.coral;
+  const ang = (r.visual ?? r.angle) * Math.PI / 2;
+  ctx.save();
+  ctx.translate(h.x, h.y);
+  const s = Math.max(scale, 0.85);
+  ctx.scale(s, s);
+  ctx.beginPath();
+  ctx.arc(0, 0, 18, 0, Math.PI * 2);
+  ctx.fillStyle = "rgba(255,255,255,.88)";
+  ctx.fill();
+  ctx.strokeStyle = hoverRot === r || dragging?.rot === r ? pal[1] : "rgba(42,58,74,.15)";
+  ctx.lineWidth = 2.5;
+  ctx.stroke();
+  ctx.rotate(ang);
+  ctx.beginPath();
+  ctx.arc(0, -11, 5, 0, Math.PI * 2);
+  ctx.fillStyle = pal[1];
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(0, -4); ctx.lineTo(0, 10);
+  ctx.strokeStyle = pal[2];
+  ctx.lineWidth = 3;
+  ctx.lineCap = "round";
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawClouds() {
+  for (const c of clouds) {
+    const x = ((c.x + time * c.sp) % (W + 120)) - 60;
+    ctx.globalAlpha = 0.35;
+    ctx.fillStyle = "#fff";
+    ctx.beginPath();
+    ctx.ellipse(x, c.y, c.r * 1.6, c.r * 0.7, 0, 0, Math.PI * 2);
+    ctx.ellipse(x + c.r * 0.8, c.y + 2, c.r, c.r * 0.55, 0, 0, Math.PI * 2);
+    ctx.ellipse(x - c.r * 0.7, c.y + 3, c.r * 0.9, c.r * 0.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+}
+
+function drawSun() {
+  const sx = W * 0.82, sy = H * 0.12;
+  const g = ctx.createRadialGradient(sx, sy, 8, sx, sy, 70);
+  g.addColorStop(0, "rgba(255,220,100,.9)");
+  g.addColorStop(0.4, "rgba(255,200,80,.35)");
+  g.addColorStop(1, "rgba(255,200,80,0)");
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(sx, sy, 70, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#ffe28a";
+  ctx.beginPath();
+  ctx.arc(sx, sy, 16, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function render() {
+  time += 16;
+  ctx.clearRect(0, 0, W, H);
+  const sky = ctx.createLinearGradient(0, 0, 0, H);
+  sky.addColorStop(0, "rgba(143,212,234,.35)");
+  sky.addColorStop(0.55, "rgba(184,228,242,.15)");
+  sky.addColorStop(1, "rgba(255,233,168,.4)");
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, W, H);
+  drawSun();
+  drawClouds();
+
+  if (state === "play" || state === "win") {
+    if (anim) {
+      anim.t += 0.075;
+      const i = anim.i;
+      if (i >= anim.path.length - 1) {
+        const last = anim.path[anim.path.length - 1];
+        player.x = last.x; player.y = last.y; player.z = last.z;
+        player.px = last.x; player.py = last.y; player.pz = last.z;
+        anim = null;
+        const here = walkableAt(player.x, player.y, player.z);
+        if (here && here.kind === "goal") finishLevel();
+      } else {
+        const a = anim.path[i], b = anim.path[i + 1];
+        const u = Math.min(1, anim.t);
+        const e = u * u * (3 - 2 * u);
+        player.px = a.x + (b.x - a.x) * e;
+        player.py = a.y + (b.y - a.y) * e;
+        player.pz = a.z + (b.z - a.z) * e;
+        if (u >= 1) {
+          anim.i++;
+          anim.t = 0;
+          player.x = b.x; player.y = b.y; player.z = b.z;
+          steps++;
+          document.getElementById("steps").textContent = String(steps);
+        }
+      }
+    }
+
+    const sorted = [...tiles].sort((a, b) => (a.x + a.y + (a.z || 0)) - (b.x + b.y + (b.z || 0)));
+    ctx.save();
+    ctx.translate(ox, oy);
+    ctx.scale(scale, scale);
+    for (const t of sorted) drawTile(t);
+    drawPlayer();
+    ctx.restore();
+    for (const r of rotators) drawRotator(r);
+  }
+
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx; p.y += p.vy; p.vy += 0.08; p.life -= 0.02;
+    if (p.life <= 0) { particles.splice(i, 1); continue; }
+    ctx.globalAlpha = p.life;
+    ctx.fillStyle = p.c;
+    ctx.beginPath();
+    ctx.arc(ox + p.x * scale, oy + p.y * scale, 3 * scale, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+
+  requestAnimationFrame(render);
+}
+
+function buildLevelButtons() {
+  const box = document.getElementById("levels");
+  box.innerHTML = "";
+  LEVELS.forEach((lv, i) => {
+    const b = document.createElement("button");
+    b.className = "lb" + (completed.includes(i) ? " done" : "");
+    b.textContent = (i + 1) + ". " + lv.name;
+    b.onclick = () => loadLevel(i);
+    box.appendChild(b);
+  });
+}
+
+document.getElementById("btn-play").onclick = () => {
+  const next = completed.length < LEVELS.length ? completed.length : 0;
+  loadLevel(Math.min(next, LEVELS.length - 1));
+};
+document.getElementById("btn-next").onclick = () => {
+  if (levelIdx < LEVELS.length - 1) loadLevel(levelIdx + 1);
+  else {
+    document.getElementById("win").classList.remove("show");
+    document.getElementById("start").style.display = "flex";
+    state = "menu";
+    buildLevelButtons();
+  }
+};
+document.getElementById("btn-menu").onclick = () => {
+  document.getElementById("win").classList.remove("show");
+  document.getElementById("start").style.display = "flex";
+  state = "menu";
+  buildLevelButtons();
+};
+
+let ringActive = false, ringFrame = 0, ringPrevGamma = null;
+function initRing() {
+  if (typeof DeviceOrientationEvent === "undefined") return;
+  const b = document.getElementById("ring-status");
+  if (typeof DeviceOrientationEvent.requestPermission === "function") {
+    b.style.display = "flex"; b.textContent = "💍 点此连接"; b.style.cursor = "pointer";
+    b.onclick = async () => {
+      try {
+        const p = await DeviceOrientationEvent.requestPermission();
+        if (p === "granted") { ringActive = true; b.className = "active"; b.textContent = "💍 已连接"; b.onclick = null; }
+      } catch (_) {}
+    };
+  } else {
+    ringActive = true; b.className = "active"; b.textContent = "💍 已连接";
+  }
+  window.addEventListener("deviceorientation", onRing);
+}
+function onRing(e) {
+  if (!ringActive || state !== "play" || !rotators.length || dragging) return;
+  ringFrame++; if (ringFrame % 8 !== 0) return;
+  const gamma = e.gamma || 0;
+  if (ringPrevGamma === null) { ringPrevGamma = gamma; return; }
+  const dG = gamma - ringPrevGamma;
+  ringPrevGamma = gamma;
+  if (Math.abs(dG) > 5) {
+    const r = hoverRot || rotators[0];
+    rotateGroupSafe(r, r.angle + (dG > 0 ? 1 : -1));
+    showHint("戒指转向", 900);
+  }
+}
+
+let caneActive = false, caneFrame = 0, caneLast = {x:0,y:0,z:0};
+function initCane() {
+  if (typeof DeviceMotionEvent === "undefined") return;
+  const b = document.getElementById("cane-status");
+  if (typeof DeviceMotionEvent.requestPermission === "function") {
+    b.style.display = "flex"; b.textContent = "🦯 点此连接"; b.style.cursor = "pointer";
+    b.onclick = async () => {
+      try {
+        const p = await DeviceMotionEvent.requestPermission();
+        if (p === "granted") { caneActive = true; b.className = "active"; b.textContent = "🦯 已连接"; b.onclick = null; }
+      } catch (_) {}
+    };
+  } else {
+    caneActive = true; b.className = "active"; b.textContent = "🦯 已连接";
+  }
+  window.addEventListener("devicemotion", onCane);
+}
+function onCane(e) {
+  if (!caneActive || state !== "play") return;
+  caneFrame++; if (caneFrame % 6 !== 0) return;
+  const a = e.accelerationIncludingGravity || e.acceleration; if (!a) return;
+  const ax = a.x || 0, ay = a.y || 0, az = a.z || 0;
+  const spike = Math.abs(ax - caneLast.x) + Math.abs(ay - caneLast.y) + Math.abs(az - caneLast.z);
+  caneLast = {x:ax,y:ay,z:az};
+  if (spike > 8) {
+    const g = tiles.find(t => t.kind === "goal");
+    if (g) tryWalkTo(g.x, g.y, g.z || 0);
+  } else if (Math.abs(ax) > 3) {
+    if (rotators.length) rotateGroupSafe(rotators[0], rotators[0].angle + (ax > 0 ? 1 : -1));
+  }
+}
+
+clouds = Array.from({length: 5}, (_, i) => ({
+  x: Math.random() * 800, y: 40 + i * 36 + Math.random() * 20,
+  r: 18 + Math.random() * 16, sp: 0.008 + Math.random() * 0.01,
+}));
+buildLevelButtons();
+resize();
+initRing();
+initCane();
+requestAnimationFrame(render);
+
+window.Sunlit = {
+  loadLevel,
+  walkToGoal() {
+    const g = tiles.find(t => t.kind === "goal");
+    if (g) tryWalkTo(g.x, g.y, g.z || 0);
+  },
+  rotate(i = 0, delta = 1) {
+    if (rotators[i]) rotateGroupSafe(rotators[i], rotators[i].angle + delta);
+  },
+  state: () => ({ state, levelIdx, steps, player: {...player}, tiles: tiles.map(t => ({...t})), rotators: rotators.map(r => ({...r})) }),
+};
+})();
+</script>
+</body>
+</html>
